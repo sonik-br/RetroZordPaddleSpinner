@@ -33,7 +33,6 @@
  * Added RetroZord's negCon mode (RZordPsWheel)
  * Added mouse mode
  * Added oled display
- * Added a hidden 2p pong game (by wotblitza) (uses Adafruit SSD1306 and GFX libs)
  * 
  * Mode selection during boot by holding buttons:
  * [Mode] high and [Config] high: MiSTer-S1 Spinner (2x) (falls to DEVICEMODE_DEFAULT)
@@ -41,7 +40,6 @@
  * [Mode] low and [Config] high: Mouse (2x) as X
  * [Mode] low and [Config] low: Mouse (1x), paddle 1 as X, paddle 2 as Y
  * 
- * Press and release [Config] a bunch of times durig boot to access the pong game :)
  * 
  * Changing [Mode] button state during runtime will trigger a hardware reset (after 1 second).
  * Can be used to change the output mode without requiring to disconnect/connect the usb cable.
@@ -56,27 +54,26 @@
  * I recommend to set multiplier at 10 for this game
  */
 
-// SoftWire config
-//also on defined on:
-//Adafruit_SSD1306.h
-//Adafruit_I2CDevice.h
-//Adafruit_GrayOLED.h
-//Adafruit_I2CDevice.h
+//Enable usage of SSD1306 oled display
+#define ENABLE_OLED_DISPLAY
 
-#define SCL_PIN 4// 8
-#define SCL_PORT PORTB
-#define SDA_PIN 5// 9
-#define SDA_PORT PORTB
 
-#define I2C_FASTMODE 1
-#define I2C_TIMEOUT 1000
-#define I2C_PULLUP 1
+#ifdef ENABLE_OLED_DISPLAY
+  // SoftWire config
+  #define SCL_PIN 4// 8
+  #define SCL_PORT PORTB
+  #define SDA_PIN 5// 9
+  #define SDA_PORT PORTB
 
-//--------------
+  #define I2C_FASTMODE 1
+  #define I2C_TIMEOUT 1000
+  #define I2C_PULLUP 1
+  //--------------
+  #include "src/SoftWire/SoftWire.h" //https://github.com/felias-fogg/SoftI2CMaster
+  #include "src/SSD1306Ascii/SSD1306Ascii.h"
+  #include "src/SSD1306Ascii/SSD1306AsciiWire.h"
+#endif
 
-#include "src/SoftWire/SoftWire.h" //https://github.com/felias-fogg/SoftI2CMaster
-#include "src/SSD1306Ascii/SSD1306Ascii.h"
-#include "src/SSD1306Ascii/SSD1306AsciiWire.h"
 #include "src/DigitalIO/DigitalIO.h"
 #include "ZordButton.h"
 #include "src/ArduinoJoystickLibrary/Joystick.h"
@@ -210,9 +207,11 @@ DeviceEnum currentMode = DEVICEMODE_DEFAULT;
 
 //uint8_t btnModeInitialState = LOW;
 
-//Display config
-#define I2C_DISPLAY_ADDRESS 0x3C // 0X3C+SA0 - 0x3C or 0x3D
-SSD1306AsciiWire display;
+#ifdef ENABLE_OLED_DISPLAY
+  //Display config
+  #define I2C_DISPLAY_ADDRESS 0x3C // 0X3C+SA0 - 0x3C or 0x3D
+  SSD1306AsciiWire display;
+#endif
 
 Joystick_* Gamepad[DEV_NUM];
 
@@ -225,9 +224,6 @@ int32_t sp_clamp[2] = {SP_MAX/2,SP_MAX/2};
 
 JogconReport1 rep;
 const int16_t sp_step = (SPINNER_PPR*10)/(20*SPINNER_SENSITIVITY);
-
-#include "PongGame.h"
-bool isPongMode = false;
 
 void configure()
 {
@@ -254,10 +250,12 @@ void mode_change_isr()
     detachInterrupt(digitalPinToInterrupt(encpin[idx][1]));
   }
 
-  display.clear();
-  display.setCol(10);
-  display.println(F("REBOOTING"));
-  display.ssd1306WriteCmd(SSD1306_DISPLAYON);
+  #ifdef ENABLE_OLED_DISPLAY
+    display.clear();
+    display.setCol(10);
+    display.println(F("REBOOTING"));
+    display.ssd1306WriteCmd(SSD1306_DISPLAYON);
+  #endif
 
   //reset and send controllers state
   for(int idx=0; idx<DEV_NUM; idx++)
@@ -316,92 +314,91 @@ void drv1_isr()
   drv_proc(1);
 }
 
-
-void showRetroZord(const bool clearRow)
-{
-  display.setRow(0);
-  if(clearRow)
+#ifdef ENABLE_OLED_DISPLAY
+  void showRetroZord(const bool clearRow)
   {
-    display.setCol(0);
-    display.clearToEOL();
-  }
-  display.setCol(10);
-  display.println(F("RetroZord"));
-}
-
-void showConfig(const bool clearRow)
-{
-  display.setRow(0);
-  if(clearRow)
-  {
-    display.setCol(0);
-    display.clearToEOL();
-  }
-  display.setCol(28);
-  display.println(F("Config"));
-  
-}
-
-void showCurrentMode(const bool clearRow)
-{
-  display.setRow(3);
-  if(clearRow)
-  {
-    display.setCol(0);
-    display.clearToEOL();
-  }
-  switch(currentMode)
-  {
-  case DEVICEMODE_DEFAULT:
-    display.setCol(12);
-    display.println(F("MiSTer-S1"));
-    break;
-  case DEVICEMODE_NEGCON:
-    display.setCol(28);
-    display.println(F("NeGcon"));
-    break;
-  case DEVICEMODE_MOUSE:
-    if(mouseInverse) {
-      display.setCol(5);
-      display.println(F("Mouse inv."));
-    } else {
-      display.setCol(35);
-      display.println(F("Mouse"));
-    }
-    break;
-  case DEVICEMODE_MOUSE_XY:
-    if(mouseInverse) {
+    display.setRow(0);
+    if(clearRow)
+    {
       display.setCol(0);
-      display.println(F("MouseXY inv."));
-    } else {
-      display.setCol(20);
-      display.println(F("MouseXY"));
+      display.clearToEOL();
     }
-    break;
-  }
-}
-
-void showMultiplier(const bool clearRow)
-{
-  display.setRow(6);
-  if(clearRow) {
-    display.setCol(0);
-    display.clearToEOL();
+    display.setCol(10);
+    display.println(F("RetroZord"));
   }
 
-  if(currentMode == DEVICEMODE_NEGCON)//negcon
-    return;
-
-  for(uint8_t i = 0; i < 2; i++)
+  void showConfig(const bool clearRow)
   {
-    if(i == 0)
-      display.setCol(10);
-    else
-      display.setCol(multiplier[1] > 9 ? 82 : 94);
-    display.print(multiplier[i]);display.print(F("X"));
+    display.setRow(0);
+    if(clearRow)
+    {
+      display.setCol(0);
+      display.clearToEOL();
+    }
+    display.setCol(28);
+    display.println(F("Config"));
   }
-}
 
+  void showCurrentMode(const bool clearRow)
+  {
+    display.setRow(3);
+    if(clearRow)
+    {
+      display.setCol(0);
+      display.clearToEOL();
+    }
+    switch(currentMode)
+    {
+    case DEVICEMODE_DEFAULT:
+      display.setCol(12);
+      display.println(F("MiSTer-S1"));
+      break;
+    case DEVICEMODE_NEGCON:
+      display.setCol(28);
+      display.println(F("NeGcon"));
+      break;
+    case DEVICEMODE_MOUSE:
+      if(mouseInverse) {
+        display.setCol(5);
+        display.println(F("Mouse inv."));
+      } else {
+        display.setCol(35);
+        display.println(F("Mouse"));
+      }
+      break;
+    case DEVICEMODE_MOUSE_XY:
+      if(mouseInverse) {
+        display.setCol(0);
+        display.println(F("MouseXY inv."));
+      } else {
+        display.setCol(20);
+        display.println(F("MouseXY"));
+      }
+      break;
+    }
+  }
+
+  void showMultiplier(const bool clearRow)
+  {
+    display.setRow(6);
+    if(clearRow) {
+      display.setCol(0);
+      display.clearToEOL();
+    }
+  
+    if(currentMode == DEVICEMODE_NEGCON)//negcon
+      return;
+  
+    for(uint8_t i = 0; i < 2; i++)
+    {
+      if(i == 0)
+        display.setCol(10);
+      else
+        display.setCol(multiplier[1] > 9 ? 82 : 94);
+      display.print(multiplier[i]);display.print(F("X"));
+    }
+  }
+#endif
 
 void setup()
 {
@@ -467,25 +464,27 @@ void setup()
     
   }
 
-  Wire.begin();
-  Wire.setClock(400000L);
+  #ifdef ENABLE_OLED_DISPLAY
+    Wire.begin();
+    Wire.setClock(400000L);
   
-  display.begin(&Adafruit128x64, I2C_DISPLAY_ADDRESS);
-  display.setFont(System5x7);
-  display.clear();
-  display.setContrast(1);
-  display.set2X();
+    display.begin(&Adafruit128x64, I2C_DISPLAY_ADDRESS);
+    display.setFont(System5x7);
+    display.clear();
+    display.setContrast(1);
+    display.set2X();
 
-  showRetroZord(false);
-  showCurrentMode(false);
-  //showMultiplier(false);
+    showRetroZord(false);
+    showCurrentMode(false);
+    //showMultiplier(false);
 
-  display.setRow(6);
-  //display.setCol(2);
-  //display.println(F("<STARTING>"));
-  display.setCol(0);
-  display.println(F("PLEASE WAIT"));
-  //display.println(F("<Starting>"));
+    display.setRow(6);
+    //display.setCol(2);
+    //display.println(F("<STARTING>"));
+    display.setCol(0);
+    display.println(F("PLEASE WAIT"));
+    //display.println(F("<Starting>"));
+  #endif
 
   //update a few times
   /*for(uint8_t i=0; i<10; i++) {
@@ -495,15 +494,11 @@ void setup()
 
   //delay(3000);
   const unsigned long start = micros();
-  uint8_t miniGameCount = 0;
-  while((micros()-start) < 2500000UL){//2.5 seconds
+  while((micros()-start) < 2000000UL){//2 seconds
     btnDebounce->update();
     if(btnDebounce->fell(buttonCount-1) || btnDebounce->rose(buttonCount-1))
       mode_change_isr();
-    if(btnDebounce->fell(buttonCount-2))
-      miniGameCount++;
   }
-  isPongMode = miniGameCount > 1;
 
   //Configure rotary encoder pins and setup interrupts
   for(int idx=0; idx<DEV_NUM; idx++)
@@ -521,14 +516,12 @@ void setup()
   //attachInterrupt(digitalPinToInterrupt(BTN_MODE_CHANGE), mode_change_isr, CHANGE);
 
   //Serial.begin(115200);
-  if(isPongMode) {
-    pongSetup();
-    return;
-  }
 
-  display.ssd1306WriteCmd(SSD1306_DISPLAYOFF);
-  showConfig(true);
-  showMultiplier(true);
+  #ifdef ENABLE_OLED_DISPLAY
+    display.ssd1306WriteCmd(SSD1306_DISPLAYOFF);
+    showConfig(true);
+    showMultiplier(true);
+  #endif
 }
 
 
@@ -551,7 +544,9 @@ void loop()
   if(btnDebounce->fell(buttonCount-2))//Config button
   {
     isConfigMode = !isConfigMode;
-    display.ssd1306WriteCmd(isConfigMode ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
+    #ifdef ENABLE_OLED_DISPLAY
+      display.ssd1306WriteCmd(isConfigMode ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
+    #endif
   }
 
   for(uint8_t idx=0; idx<DEV_NUM; idx++)
@@ -569,12 +564,16 @@ void loop()
         if(multiplier[idx] > 10) //reached limit. loop to initial value.
           multiplier[idx] = 1;
         //update the display
-        showMultiplier(true);
+        #ifdef ENABLE_OLED_DISPLAY
+          showMultiplier(true);
+        #endif
       }
       if(btnDebounce->fell(btnIdx1) && (currentMode == DEVICEMODE_MOUSE || currentMode == DEVICEMODE_MOUSE_XY))//button 1 just activated
       {
         mouseInverse = !mouseInverse;
-        showCurrentMode(true);
+        #ifdef ENABLE_OLED_DISPLAY
+          showCurrentMode(true);
+        #endif
       }
     } //end if(isConfigMode)
     
@@ -636,23 +635,8 @@ void loop()
     // Only report controller state if it has changed
     if(Gamepad[idx]->stateChanged()) {
       Gamepad[idx]->sendState();
-
-      if(isPongMode) {
-        //update pong spinner
-        if(idx == 0){
-          if(rep.spinner != 0)
-            spinner_left += rep.spinner;
-        } else {
-          if(rep.spinner != 0)
-            spinner_right += rep.spinner;
-        }
-      }//end if isPongMode
     }//end if stateChanged
 
   }//end for
 
-
-  if(isPongMode)
-    pongLoop();
-  
 }
