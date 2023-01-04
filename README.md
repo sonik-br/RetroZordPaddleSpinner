@@ -18,7 +18,6 @@ This is a fork from [A2600 Paddles/Spinners USB Adapter](https://github.com/MiST
 - Added oled display
 - Added mouse/spinner speed multiplier (1x, 4x, 7x, 10x)
 - Added mouse axis inversion
-- Added a hidden 2p pong game
 
 ### Modes
 
@@ -34,8 +33,6 @@ Mode selection during boot by holding buttons:
 - [Mode] high and [Config] low: NeGcon (2x)
 - [Mode] low and [Config] high: Mouse (2x) as X
 - [Mode] low and [Config] low: Mouse (1x), paddle 1 as X, paddle 2 as Y
-
-Press and release [Config] a bunch of times durig boot to access the pong game :)
 
 Changing [Mode] button state during runtime will trigger a hardware reset (after 1 second).<br/>
 Can be used to change the output mode without requiring to disconnect/connect the usb cable.
@@ -56,8 +53,5 @@ I recommend to set multiplier at 10 for this game.
 [DigitalIO](https://github.com/greiman/DigitalIO) and [SSD1306Ascii](https://github.com/greiman/SSD1306Ascii) from greiman.<br/>
 [SoftWire](https://github.com/felias-fogg/SoftI2CMaster) from felias-fogg.<br/>
 [Bugtton](https://github.com/sakabug/Bugtton) from sakabug<br/>
-
-[Pong Game](https://create.arduino.cc/projecthub/wotblitza/pong-with-oled-ssd1306-joystick-and-buzzer-58c423) from wotblitza.<br/>
-[SSD1306](https://github.com/adafruit/Adafruit_SSD1306), [GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library) and [BusIO](https://github.com/adafruit/Adafruit_BusIO) from Adafruit.
 
 Special thanks to my father helping with the hardware.
